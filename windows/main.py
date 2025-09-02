@@ -1,4 +1,3 @@
-# main.py
 import sys
 import os
 import getpass
@@ -10,10 +9,9 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtGui import QFont
 from PyQt5.QtCore import Qt
-
-from secure_erase import (
-    collect_files, wipe_folder_and_certify, ensure_keypair, verify_certificate_json, PUBLIC_KEY_FILE
-)
+from files_utils import collect_files,secure_wipe_file
+from wipe_process import wipe_folder_and_certify
+from crypto_utils import verify_certificate_json, PUBLIC_KEY_FILE
 
 class MainWindow(QWidget):
     def _wipe_animation(self):
@@ -44,9 +42,6 @@ class MainWindow(QWidget):
         self.form_layout.addRow('Operator Name:', self.name_input)
         self.form_layout.addRow('Organization:', self.org_input)
         self.form_layout.addRow('Email:', self.email_input)
-        self.form_layout.addRow('Phone:', self.phone_input)
-        self.form_layout.addRow('Location:', self.location_input)
-        layout.addLayout(self.form_layout)
 
         pass_layout = QHBoxLayout()
         pass_label = QLabel('Number of Wipe Passes:')
@@ -76,16 +71,15 @@ class MainWindow(QWidget):
         class WipeThread(QThread):
             progress = pyqtSignal(int)
             finished = pyqtSignal(str, str, bool)
-            def __init__(self, files, folder_path, operator_id, passes, output_dir):
+            def __init__(self, files, folder_path, operator_id, passes, output_dirs):
                 super().__init__()
                 self.files = files
                 self.folder_path = folder_path
                 self.operator_id = operator_id
                 self.passes = passes
-                self.output_dir = output_dir
+                self.output_dirs = output_dirs
             def run(self):
                 # Wipe files one by one, emit progress
-                from secure_erase import secure_wipe_file, wipe_folder_and_certify, verify_certificate_json, PUBLIC_KEY_FILE
                 for idx, fpath in enumerate(self.files):
                     try:
                         secure_wipe_file(fpath, passes=self.passes)
@@ -93,7 +87,12 @@ class MainWindow(QWidget):
                         pass
                     self.progress.emit(idx+1)
                 # After wipe, generate certificate
-                signed_json_path, pdf_path = wipe_folder_and_certify(self.folder_path, self.operator_id, passes=self.passes, output_dir=self.output_dir)
+                signed_json_path, pdf_path = wipe_folder_and_certify(
+                    self.folder_path,
+                    self.operator_id,
+                    passes=self.passes,
+                    output_dir=self.output_dirs
+                )
                 pubkey_path = os.path.abspath(PUBLIC_KEY_FILE)
                 ok = verify_certificate_json(signed_json_path, pubkey_path) if os.path.exists(pubkey_path) else False
                 self.finished.emit(signed_json_path, pdf_path, ok)
@@ -108,7 +107,6 @@ class MainWindow(QWidget):
                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         if resp != QMessageBox.Yes:
             return
-
         files, total_size, hidden_files = collect_files(folder_path)
         if not files:
             QMessageBox.information(self, "Nothing to wipe", "Selected folder contains no files.")
@@ -118,12 +116,13 @@ class MainWindow(QWidget):
         self.progress.setValue(0)
         self.progress.setFormat("Wiping... |")
         self._anim_idx = 0
-        operator_id = self.name_input.text() or getpass.getuser()
         self.choose_button.setEnabled(False)
         self.progress.setVisible(True)
         self.certificate_label.setText("")
 
-        self.wipe_thread = WipeThread(files, folder_path, operator_id, self.pass_spin.value(), "output")
+        operator_id = self.name_input.text() or getpass.getuser()
+        output_dirs = {"json": os.path.join("output", "json"), "pdf": os.path.join("output", "pdf")}
+        self.wipe_thread = WipeThread(files, folder_path, operator_id, self.pass_spin.value(), output_dirs)
         self.wipe_thread.progress.connect(self._on_wipe_progress)
         self.wipe_thread.finished.connect(self._on_wipe_finished)
         self.wipe_thread.start()
@@ -136,7 +135,6 @@ class MainWindow(QWidget):
 
     def _on_wipe_progress(self, value):
         self.progress.setValue(value)
-
     def _on_wipe_finished(self, signed_json_path, pdf_path, ok):
         self.anim_timer.stop()
         self.progress.setFormat("")
