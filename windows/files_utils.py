@@ -15,7 +15,28 @@ def sha256_file(path: str) -> str:
 
 
 
-def secure_wipe_file(path: str, passes: int = 3, progress_callback=None) -> None:
+def verify_wipe(file_handle) -> bool:
+    """
+    Verifies that the file contains no recoverable data
+    Args:
+        file_handle: Open file handle in binary read mode
+    Returns:
+        bool: True if verification successful
+    """
+    try:
+        file_handle.seek(0)
+        while True:
+            block = file_handle.read(8192)
+            if not block:
+                break
+            # Check if block contains any non-zero data
+            if any(b != 0 for b in block):
+                return False
+        return True
+    except Exception:
+        return False
+
+def secure_wipe_file(path: str, passes: int = 3, progress_callback=None, verify: bool = True) -> bool:
     """
     Overwrite file contents with random bytes for `passes` times, then remove it.
     NOTE: destructive.
@@ -24,6 +45,9 @@ def secure_wipe_file(path: str, passes: int = 3, progress_callback=None) -> None
         path: Path to the file to wipe
         passes: Number of overwrite passes
         progress_callback: Optional callback function that accepts a pass number (1 to passes)
+        verify: Whether to verify the wipe after completion
+    Returns:
+        bool: True if wipe and verification successful
     """
     if not os.path.exists(path):
         raise FileNotFoundError(f"File not found: {path}")
@@ -31,7 +55,7 @@ def secure_wipe_file(path: str, passes: int = 3, progress_callback=None) -> None
     length = os.path.getsize(path)
     if length == 0:
         os.remove(path)
-        return
+        return True
         
     # Open in rb+ mode where possible
     try:
@@ -50,6 +74,25 @@ def secure_wipe_file(path: str, passes: int = 3, progress_callback=None) -> None
                 
                 if progress_callback:
                     progress_callback(current_pass)
+            
+            # Verify the wipe if requested
+            if verify:
+                # Final pass - all zeros for verification
+                f.seek(0)
+                remaining = length
+                while remaining > 0:
+                    to_write = b'\x00' * min(CHUNK, remaining)
+                    f.write(to_write)
+                    remaining -= len(to_write)
+                f.flush()
+                os.fsync(f.fileno())
+                
+                # Verify the wipe
+                verified = verify_wipe(f)
+                if not verified:
+                    return False
+            
+            return True
                     
     except PermissionError:
         raise PermissionError(f"Access denied to file: {path}")
