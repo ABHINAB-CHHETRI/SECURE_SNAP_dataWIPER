@@ -16,10 +16,11 @@ class SecureSnapWiper:
         # self.root.geometry("800x600")  # Larger size for better visibility
         # self.root.resizable(False, False)
         self.root.config(bg="#f0f0f0")  # Light gray background
-        
+        # Position window at top-left corner
+        self.root.geometry("+0+0")
         # Initialize variables
         self.selected_folder = None
-        self.passes = 7
+        self.passes = 432
         self.content_frame = None
         self.status_label = None
         
@@ -36,16 +37,28 @@ class SecureSnapWiper:
         }
         
         # Load images
-        logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "logo.jpg")
-        eco_warrior_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "UI", "eco warrier.jpg")
+        logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "images","logo.jpg")
+        eco_warrior_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "images", "eco_warrier.jpg")
         
         # Open and resize images using PIL
         logo_img = Image.open(logo_path)
         eco_warrior_img = Image.open(eco_warrior_path)
         
-        # Resize images to appropriate sizes
-        logo_img = logo_img.resize((100, 40), Image.Resampling.LANCZOS)
-        eco_warrior_img = eco_warrior_img.resize((60, 60), Image.Resampling.LANCZOS)
+        # Calculate dimensions for 25% width coverage
+        window_width = 800  # Base window width
+        logo_width = int(window_width * 0.25)
+        eco_width = int(window_width * 0.25)
+        
+        # Calculate heights proportionally to maintain aspect ratio
+        logo_aspect = logo_img.size[1] / logo_img.size[0]
+        eco_aspect = eco_warrior_img.size[1] / eco_warrior_img.size[0]
+        
+        logo_height = int(logo_width * logo_aspect)
+        eco_height = int(eco_width * eco_aspect)
+        
+        # Resize images with calculated dimensions
+        logo_img = logo_img.resize((logo_width, logo_height), Image.Resampling.LANCZOS)
+        eco_warrior_img = eco_warrior_img.resize((eco_width, eco_height), Image.Resampling.LANCZOS)
         
         # Convert to PhotoImage
         self.logo_photo = ImageTk.PhotoImage(logo_img)
