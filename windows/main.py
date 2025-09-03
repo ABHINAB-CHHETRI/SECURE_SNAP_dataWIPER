@@ -1,4 +1,4 @@
-from main_new import SecureSnapWiper
+from GUI import SecureSnapWiper
 import tkinter as tk
 
 if __name__ == '__main__':
