@@ -58,25 +58,14 @@ def write_certificate_files(cert: Dict[str, Any], output_dirs, private_key, publ
     os.makedirs(json_dir, exist_ok=True)
     os.makedirs(pdf_dir, exist_ok=True)
 
-    cert_json_path = os.path.join(json_dir, "certificate.json")
+    # Generate signed certificate directly
     cert_bytes = json.dumps(cert, indent=2, ensure_ascii=False).encode("utf-8")
-    with open(cert_json_path, "wb") as f:
-        f.write(cert_bytes)
-
     signature_b64 = sign_json_bytes(cert_bytes, private_key)
     cert_signed = dict(cert)
     cert_signed["signature_b64"] = signature_b64
     cert_signed_path = os.path.join(json_dir, "certificate.signed.json")
     with open(cert_signed_path, "w", encoding="utf-8") as f:
         json.dump(cert_signed, f, indent=2, ensure_ascii=False)
-
-    sig_path = os.path.join(json_dir, "certificate.signature.b64")
-    with open(sig_path, "w") as f:
-        f.write(signature_b64)
-
-    debug_bytes_path = os.path.join(json_dir, "certificate.signed_bytes.json")
-    with open(debug_bytes_path, "wb") as f:
-        f.write(cert_bytes)
 
     pubkey_pem = public_key.public_bytes(encoding=serialization.Encoding.PEM, format=serialization.PublicFormat.SubjectPublicKeyInfo)
     pub_path = os.path.join(json_dir, "public_key.pem")
