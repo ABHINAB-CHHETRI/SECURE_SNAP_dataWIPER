@@ -1,11 +1,13 @@
 import json
+from pdb import main
+from wsgiref.validate import validator
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import padding
-from crypto_utils import verify_certificate
+from crypto_utils import verify_certificate_enhanced
 
-
-def main():
-    verify_certificate(r"output\json\certificate.signed.json", r"output\json\public_key.pem")
 
 if __name__ == "__main__":
-    main()
+    verify_certificate_enhanced(
+        r"certificate\json\certificate.signed.json",
+        r"certificate\json\public_key.pem"
+    )   
