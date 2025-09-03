@@ -1,4 +1,5 @@
 /windows/__pycache__/*
 /output/*
 UI/*
-windows\main_new.py
+windows/main_new.py
+main_new.py
