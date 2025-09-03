@@ -355,11 +355,10 @@ class SecureSnapWiper:
             default_name = f"secure_wipe_certificate_{timestamp}.json"
             
             # Only essential files needed for verification
-            certificate_files = [
-                "certificate.signed.json",
-                "public_key.pem"
-            ]
-            associated_files = {f"file_{i}": fname for i, fname in enumerate(certificate_files)}
+            source_files = {
+                'certificate': source_base,  # The main certificate file
+                'pubkey': 'public_key.pem'
+            }
         else:  # pdf
             file_types = [("PDF Report", "*.pdf"), ("All files", "*.*")]
             default_ext = ".pdf"
@@ -382,30 +381,37 @@ class SecureSnapWiper:
                 
                 # Create new filename based on timestamp
                 base_name = f"secure_wipe_certificate_{timestamp}"
-                
-                # Copy all certificate files
+                files_copied = []
+
                 if file_type == "json":
-                    files_copied = []
-                    for file_type, file_name in associated_files.items():
-                        source_file = os.path.join(source_dir, file_name)
-                        if os.path.exists(source_file):
-                            if file_name == "certificate.json":
-                                # Use the user-selected name for the main certificate
-                                dest_file = save_path
-                            else:
-                                # Keep original names for other files
-                                dest_file = os.path.join(save_dir, file_name)
-                            shutil.copy2(source_file, dest_file)
-                            files_copied.append(os.path.basename(dest_file))
+                    # First copy the main certificate file
+                    shutil.copy2(source_path, save_path)
+                    files_copied.append(os.path.basename(save_path))
+                    
+                    # Then copy the public key
+                    pubkey_source = os.path.join(source_dir, 'public_key.pem')
+                    if os.path.exists(pubkey_source):
+                        pubkey_dest = os.path.join(save_dir, 'public_key.pem')
+                        shutil.copy2(pubkey_source, pubkey_dest)
+                        files_copied.append('public_key.pem')
+                else:  # pdf
+                    # Copy the PDF file
+                    shutil.copy2(source_path, save_path)
+                    files_copied.append(os.path.basename(save_path))
                 
                     # Show which files were copied and explain their purpose
                     files_list = "\n".join(files_copied)
-                    messagebox.showinfo("Success", 
-                        f"Essential verification files saved to:\n{save_dir}\n\n"
-                        f"Files saved:\n{files_list}\n\n"
-                        "These are the only files needed to verify the certificate:\n"
-                        "- certificate.signed.json: Contains the certificate data and signature\n"
-                        "- public_key.pem: Required to verify the signature")
+                    if file_type == "json":
+                        messagebox.showinfo("Success", 
+                            f"Essential verification files saved to:\n{save_dir}\n\n"
+                            f"Files saved:\n{files_list}\n\n"
+                            "These are the only files needed to verify the certificate:\n"
+                            "- certificate.signed.json: Contains the certificate data and signature\n"
+                            "- public_key.pem: Required to verify the signature")
+                    else:  # pdf
+                        messagebox.showinfo("Success",
+                            f"PDF Report saved to:\n{save_dir}\n\n"
+                            f"File saved:\n{files_list}")
             except Exception as e:
                 messagebox.showerror("Error", 
                     f"Failed to save files: {str(e)}")

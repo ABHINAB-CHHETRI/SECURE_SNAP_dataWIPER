@@ -33,8 +33,14 @@ def verify_wipe(file_handle) -> bool:
             if any(b != 0 for b in block):
                 return False
         return True
-    except Exception:
+    except Exception as e:
+        print(f"Error during verification: {str(e)}")
         return False
+    finally:
+        try:
+            file_handle.seek(0)  # Reset file position after verification
+        except Exception:
+            pass  # Ignore errors in seek during cleanup
 
 def secure_wipe_file(path: str, passes: int = 3, progress_callback=None, verify: bool = True) -> bool:
     """
@@ -90,9 +96,20 @@ def secure_wipe_file(path: str, passes: int = 3, progress_callback=None, verify:
                 # Verify the wipe
                 verified = verify_wipe(f)
                 if not verified:
+                    f.close()
                     return False
             
+        # Now that the file is properly closed, we can delete it
+        try:
+            os.remove(path)
             return True
+        except Exception as e:
+            print(f"Error deleting file {path}: {str(e)}")
+            return False
+            
+    except Exception as e:
+        print(f"Error during secure wipe of {path}: {str(e)}")
+        return False
                     
     except PermissionError:
         raise PermissionError(f"Access denied to file: {path}")

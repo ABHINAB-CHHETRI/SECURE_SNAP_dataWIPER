@@ -68,15 +68,21 @@ def wipe_folder_and_certify(folder_path: str, operator_id: str, passes: int = 3,
                 "relative_path": os.path.relpath(fpath, folder_path)
             })
 
-    # remove empty dirs
-    for root, dirs, _ in os.walk(folder_path, topdown=False):
+    # remove empty dirs (walk bottom-up to properly handle nested empty directories)
+    empty_dirs_removed = []
+    failed_dirs = []
+    for root, dirs, files in os.walk(folder_path, topdown=False):
         for d in dirs:
             dir_path = os.path.join(root, d)
             try:
-                if not os.listdir(dir_path):
+                if not os.listdir(dir_path):  # Check if directory is empty
                     os.rmdir(dir_path)
-            except Exception:
-                pass
+                    empty_dirs_removed.append(os.path.relpath(dir_path, folder_path))
+            except Exception as e:
+                failed_dirs.append({
+                    "path": os.path.relpath(dir_path, folder_path),
+                    "error": str(e)
+                })
 
     end_time = datetime.datetime.utcnow()
     duration = (end_time - start_time).total_seconds()
@@ -109,6 +115,10 @@ def wipe_folder_and_certify(folder_path: str, operator_id: str, passes: int = 3,
             "verified_files": verified_files,
             "verification_method": "Zero-fill and read-back verification",
             "files_failed_verification": [f["relative_path"] for f in failed_files if f["error"] == "Failed verification after wipe"]
+        },
+        "directory_cleanup": {
+            "empty_directories_removed": empty_dirs_removed,
+            "directories_failed_removal": [f["path"] for f in failed_dirs]
         }
     }
 
