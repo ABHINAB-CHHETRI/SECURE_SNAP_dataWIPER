@@ -1,8 +1,18 @@
 import os
 import hashlib
 from typing import List, Tuple
+from ctypes import windll
 
-
+def make_writable(path: str):
+    """
+    Make a file writable by changing its permissions.
+    Args:
+        path: Path to the file
+    """
+    try:
+        os.chmod(path, 0o666)
+    except Exception as e:
+        print(f"Failed to change permissions for {path}: {e}")
 
 def sha256_file(path: str) -> str:
     h = hashlib.sha256()
@@ -10,10 +20,6 @@ def sha256_file(path: str) -> str:
         for chunk in iter(lambda: f.read(8192), b""):
             h.update(chunk)
     return h.hexdigest()
-
-
-
-
 
 def verify_wipe(file_handle) -> bool:
     """
@@ -57,6 +63,8 @@ def secure_wipe_file(path: str, passes: int = 3, progress_callback=None, verify:
     """
     if not os.path.exists(path):
         raise FileNotFoundError(f"File not found: {path}")
+
+    make_writable(path)  # Ensure file is writable before wiping
         
     length = os.path.getsize(path)
     if length == 0:
@@ -115,6 +123,7 @@ def secure_wipe_file(path: str, passes: int = 3, progress_callback=None, verify:
         raise PermissionError(f"Access denied to file: {path}")
     except OSError as e:
         # fallback: overwrite via writing to temporary then rename (best-effort)
+        make_writable(path)  # Ensure writable before fallback
         with open(path, "wb") as f:
             for current_pass in range(1, passes + 1):
                 f.seek(0)
@@ -131,22 +140,33 @@ def secure_wipe_file(path: str, passes: int = 3, progress_callback=None, verify:
                     progress_callback(current_pass)
     # remove file
     os.remove(path)
-    
-    
-    
+
+def is_hidden_windows(filepath: str) -> bool:
+    """
+    Check if a file is hidden on Windows using GetFileAttributes
+    """
+    try:
+        attrs = windll.kernel32.GetFileAttributesW(filepath)
+        return attrs != -1 and bool(attrs & 2)  # 2 is FILE_ATTRIBUTE_HIDDEN
+    except Exception:
+        return False
 
 def collect_files(folder_path: str) -> Tuple[List[str], int, int]:
     file_paths = []
     total_size = 0
     hidden_files = 0
+    
     for root, _, files in os.walk(folder_path):
         for file in files:
             file_path = os.path.join(root, file)
             file_paths.append(file_path)
             try:
                 total_size += os.path.getsize(file_path)
-                if file.startswith('.') or file.startswith('~'):
+                # Check for Windows hidden files using proper API
+                if is_hidden_windows(file_path):
                     hidden_files += 1
-            except Exception:
+            except Exception as e:
+                print(f"Error processing file {file_path}: {str(e)}")
                 pass
+                
     return file_paths, total_size, hidden_files
