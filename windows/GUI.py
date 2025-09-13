@@ -570,7 +570,7 @@ class SecureSnapWiper:
                     
                     update_status(f"Wiped {idx}/{len(files)} files ({round(total_bytes_wiped/1e6, 2)} MB total)")
 
-                update_status("Wipe completed. Simulating verification...")
+                update_status("Post Wipe completed.")
 
                 # Simulate verification step
                 def after_verification():
