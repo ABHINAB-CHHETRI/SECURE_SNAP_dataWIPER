@@ -100,16 +100,16 @@ class SecureSnapWiper:
                                      bg="white", font=("Arial", 12), fg="#666666")
         self.file_path_label.pack(pady=15)
 
-        # Passes selection frame
-        passes_frame = tk.Frame(self.content_frame, bg="white", relief="solid", bd=1)
-        passes_frame.pack(fill="x", pady=20, padx=50)
+        # # Passes selection frame
+        # passes_frame = tk.Frame(self.content_frame, bg="white", relief="solid", bd=1)
+        # passes_frame.pack(fill="x", pady=20, padx=50)
         
-        tk.Label(passes_frame, text="Number of Passes:", 
-                bg="white", font=("Arial", 12), fg="#666666").pack(side="left", padx=10, pady=15)
+        # tk.Label(passes_frame, text="Number of Passes:", 
+        #         bg="white", font=("Arial", 12), fg="#666666").pack(side="left", padx=10, pady=15)
         
-        self.passes_var = tk.StringVar(value="7")
-        passes_entry = ttk.Entry(passes_frame, textvariable=self.passes_var, width=10)
-        passes_entry.pack(side="left", padx=10, pady=15)
+        # self.passes_var = tk.StringVar(value="7")
+        # passes_entry = ttk.Entry(passes_frame, textvariable=self.passes_var, width=10)
+        # passes_entry.pack(side="left", padx=10, pady=15)
         
         # Buttons frame
         button_frame = tk.Frame(self.content_frame, bg="#f0f0f0")
@@ -473,7 +473,8 @@ class SecureSnapWiper:
             
         # Validate number of passes
         try:
-            passes = int(self.passes_var.get())
+            # passes = int(self.passes_var.get())
+            passes=7
             if passes < 1:
                 messagebox.showerror("Error", "Number of passes must be at least 1.")
                 return

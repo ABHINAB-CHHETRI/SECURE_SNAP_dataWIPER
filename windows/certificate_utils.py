@@ -46,6 +46,7 @@ def build_certificate(
         "signature_and_authentication": signature_auth,
         "blockchain_id": blockchain_id
     }
+    print(cert,type(cert),end='\n\n',sep='\n========================\n')
     return cert
 
 
@@ -53,6 +54,7 @@ def build_certificate(
 
 def write_certificate_files(cert: Dict[str, Any], output_dirs, private_key, public_key) -> Tuple[str, str]:
     # output_dirs: dict with keys 'json' and 'pdf'
+    print( 'output dirs : ',output_dirs,sep='\n========================\n')
     json_dir = output_dirs["json"]
     pdf_dir = output_dirs["pdf"]
     os.makedirs(json_dir, exist_ok=True)
@@ -60,7 +62,11 @@ def write_certificate_files(cert: Dict[str, Any], output_dirs, private_key, publ
 
     # Generate signed certificate directly
     cert_bytes = json.dumps(cert, indent=2, ensure_ascii=False).encode("utf-8")
+    #sign the file using private key
+    print("Private Key:", private_key,sep='\n========================\n')
     signature_b64 = sign_json_bytes(cert_bytes, private_key)
+    print("Private Key:", private_key,sep='\n========================\n')
+    print("signing completed",signature_b64,sep='\n========================\n')
     cert_signed = dict(cert)
     cert_signed["signature_b64"] = signature_b64
     cert_signed_path = os.path.join(json_dir, "certificate.signed.json")
@@ -87,6 +93,7 @@ def generate_pdf_from_cert(cert: Dict[str, Any], pdf_path: str, public_key_pem: 
     width, height = A4
     y = height - 50
 
+    #not working currently
     # ===== Watermark logo (center faded) =====
     logo_path = os.path.join(os.path.dirname(pdf_path), "logo.webp")
     if os.path.exists(logo_path):
@@ -98,8 +105,9 @@ def generate_pdf_from_cert(cert: Dict[str, Any], pdf_path: str, public_key_pem: 
             c.setFillAlpha(0.06)
             c.drawImage(logo, -200, -200, width=400, height=400, mask='auto')
             c.restoreState()
-        except Exception:
-            pass
+        except Exception as e:
+            print("Error :: ",e,sep='\n========================\n')
+            
 
     # ===== Premium Heading Box =====
     heading_height = 120
@@ -134,6 +142,7 @@ def generate_pdf_from_cert(cert: Dict[str, Any], pdf_path: str, public_key_pem: 
     c.drawCentredString(width/2, heading_top + heading_height - 95, f"Issued on: {header.get('issued_on')}")
     c.drawCentredString(width/2, heading_top + heading_height - 110, f"Valid Until: {header.get('valid_until')}")
 
+    # logo is not added
     # Logo on left
     if os.path.exists(logo_path):
         try:
@@ -143,7 +152,7 @@ def generate_pdf_from_cert(cert: Dict[str, Any], pdf_path: str, public_key_pem: 
             pass
 
     # QR code on right
-    qr_data = f"Certificate ID: {header.get('certificate_id')}\nVerify: https://www.secureerase,com/?id={header.get('certificate_id')}"
+    qr_data = f"https://secure-snap-validator.vercel.app/id={header.get('certificate_id')}"
     try:
         qr = qrcode.QRCode(box_size=2, border=1)
         qr.add_data(qr_data)
@@ -202,8 +211,8 @@ def generate_pdf_from_cert(cert: Dict[str, Any], pdf_path: str, public_key_pem: 
         write_line(sig[i:i+100], indent=10, size=7)
 
     y -= 8
-    write_line("Public Key (PEM - first lines):", bold=True)
-    for line in public_key_pem.decode("utf-8").splitlines()[:6]:
+    write_line("Public Key :", bold=True)
+    for line in public_key_pem.decode("utf-8").splitlines():
         write_line(line, indent=10, size=7)
 
     # ===== Footer =====
@@ -213,3 +222,5 @@ def generate_pdf_from_cert(cert: Dict[str, Any], pdf_path: str, public_key_pem: 
     c.drawCentredString(width/2, y, "This certificate is generated digitally and verifiable using the attached signature & public key.")
 
     c.save()
+
+
