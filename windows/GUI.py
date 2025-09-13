@@ -464,6 +464,27 @@ class SecureSnapWiper:
             
         self.setup_confirmation_screen()
 
+    def show_verification_simulation(self, callback):
+        """Simulate verification with a progress bar for 7 seconds, then call callback."""
+        self.clear_window()
+        frame = tk.Frame(self.root, bg="white", padx=50, pady=30)
+        frame.pack(fill="both", expand=True)
+
+        tk.Label(frame, text="Verifying Wipe...", font=("Arial", 20, "bold"), bg="white").pack(pady=(20, 10))
+        progress = ttk.Progressbar(frame, orient="horizontal", length=400, mode="determinate", maximum=100)
+        progress.pack(pady=20)
+        status = tk.Label(frame, text="Please wait while we verify the wipe...", font=("Arial", 12), bg="white")
+        status.pack(pady=10)
+
+        def update_bar(step=0):
+            progress["value"] = step
+            if step < 100:
+                self.root.after(70, lambda: update_bar(step + 2))  # 70ms * 50 = ~3.5s, 70ms * 100 = ~7s
+            else:
+                callback()
+
+        update_bar()
+
     def start_wiping(self):
         """Start the wiping process in a separate thread"""
         # Double-check folder exists and is accessible
@@ -549,22 +570,24 @@ class SecureSnapWiper:
                     
                     update_status(f"Wiped {idx}/{len(files)} files ({round(total_bytes_wiped/1e6, 2)} MB total)")
 
-                update_status("Generating certificate...")
-                signed_json_path, pdf_path = wipe_folder_and_certify(
-                    self.selected_folder,
-                    getpass.getuser(),
-                    passes=self.passes,
-                    output_dir=self.output_dirs
-                )
-                
-                # Verify certificate
-                pubkey_path = os.path.abspath(PUBLIC_KEY_FILE)
-                verification_ok = verify_certificate_json(signed_json_path, pubkey_path) if os.path.exists(pubkey_path) else False
-                
-                # Show completion screen
-                self.root.after(0, lambda: self.setup_completion_screen(
-                    signed_json_path, pdf_path, verification_ok))
-                
+                update_status("Wipe completed. Simulating verification...")
+
+                # Simulate verification step
+                def after_verification():
+                    # update_status("Generating certificate...")  # <-- REMOVE or COMMENT THIS LINE
+                    signed_json_path, pdf_path = wipe_folder_and_certify(
+                        self.selected_folder,
+                        getpass.getuser(),
+                        passes=self.passes,
+                        output_dir=self.output_dirs
+                    )
+                    pubkey_path = os.path.abspath(PUBLIC_KEY_FILE)
+                    verification_ok = verify_certificate_json(signed_json_path, pubkey_path) if os.path.exists(pubkey_path) else False
+                    self.root.after(0, lambda: self.setup_completion_screen(
+                        signed_json_path, pdf_path, verification_ok))
+
+                self.root.after(0, lambda: self.show_verification_simulation(after_verification))
+
             except Exception as e:
                 self.root.after(0, lambda: messagebox.showerror(
                     "Error", f"An error occurred during wiping: {str(e)}"))
